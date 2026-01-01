@@ -8,23 +8,20 @@ import java.util.stream.Collectors;
 
 public class Bytes {
   public static void main(String[] args) {
+
     System.out.println("Hello, world!");
     // this doesn't work
     try (FileInputStream fileInputStream = new FileInputStream(
         "/Users/asilbekmuminov/code/go-http/httpfromtcp/src/main/java/org/lesson1/messages.txt")) {
-      Integer data = 0;
-      ArrayList<Character> chars = new ArrayList<Character>();
+      ArrayList<String> lines = new ArrayList<>();
       System.out.println("Reading file content:");
-      while (data != -1) {
-        data = fileInputStream.read();
-        chars.add((char) data.byteValue());
+      // parse
+      parse(fileInputStream, lines);
 
-        if (chars.size() % 8 == 0) {
-          String charsString = chars.stream().map(c -> Character.toString(c)).collect(Collectors.joining());
-          System.out.print("read: " + charsString);
-          System.err.println("\n");
-          chars.removeAll(chars);
-        } 
+      // output
+      for (String lline : lines) {
+        System.out.print("read: " + lline);
+        System.err.println("\n");
       }
 
     } catch (FileNotFoundException e) {
@@ -33,7 +30,38 @@ public class Bytes {
       System.err.println("Error reading file: " + e.getMessage());
     }
 
+  }
 
+  public static String parse(FileInputStream fileInputStream, ArrayList<String> lines) throws IOException {
+      Integer data = 0;
+      ArrayList<Character> chars = new ArrayList<Character>();
+      ArrayList<String> parts = new ArrayList<>();
+      String line = "";
+
+      while (data != -1) {
+        data = fileInputStream.read();
+        chars.add((char) data.byteValue());
+
+        if (chars.size() % 8 == 0) {
+          String charsString = chars.stream().map(c -> Character.toString(c)).collect(Collectors.joining());
+          if (charsString.contains("\n")) {
+            parts.add(charsString.split("\n")[0]);
+            parts.add(charsString.split("\n")[1]);
+          }
+
+          if (parts.size() == 2) {
+            line += parts.getFirst();
+            parts.removeFirst();
+            lines.add(line);
+            line = parts.getFirst();
+            parts.removeFirst();
+          } else { 
+            line += charsString;
+          }
+          chars.removeAll(chars);
+        }
+      }
+    return "";
   }
 
 }
