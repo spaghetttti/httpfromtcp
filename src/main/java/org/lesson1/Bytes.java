@@ -16,7 +16,7 @@ public class Bytes {
       ArrayList<String> lines = new ArrayList<>();
       System.out.println("Reading file content:");
       // parse
-      parse(fileInputStream, lines);
+      lines = parse(fileInputStream, lines);
 
       // output
       for (String lline : lines) {
@@ -32,36 +32,36 @@ public class Bytes {
 
   }
 
-  public static String parse(FileInputStream fileInputStream, ArrayList<String> lines) throws IOException {
-      Integer data = 0;
-      ArrayList<Character> chars = new ArrayList<Character>();
-      ArrayList<String> parts = new ArrayList<>();
-      String line = "";
+  public static ArrayList<String> parse(FileInputStream fileInputStream, ArrayList<String> lines) throws IOException {
+    int data;
+    StringBuilder chars = new StringBuilder();
+    String line = "";
 
-      while (data != -1) {
-        data = fileInputStream.read();
-        chars.add((char) data.byteValue());
+    while ((data = fileInputStream.read()) != -1) {
+      chars.append((char) data);
 
-        if (chars.size() % 8 == 0) {
-          String charsString = chars.stream().map(c -> Character.toString(c)).collect(Collectors.joining());
-          if (charsString.contains("\n")) {
-            parts.add(charsString.split("\n")[0]);
-            parts.add(charsString.split("\n")[1]);
-          }
+      if (chars.length() == 8) {
+        String charsString = chars.toString();
+        if (charsString.contains("\n")) {
+          String[] parts = charsString.split("\n", -1);
 
-          if (parts.size() == 2) {
-            line += parts.getFirst();
-            parts.removeFirst();
+          for (int i = 0; i < parts.length - 1; i++) {
+            line += parts[i];
             lines.add(line);
-            line = parts.getFirst();
-            parts.removeFirst();
-          } else { 
-            line += charsString;
+            line = "";
           }
-          chars.removeAll(chars);
+
+          line = parts[parts.length - 1];
+
+        } else {
+          line += charsString;
         }
+        chars.setLength(0);
       }
-    return "";
+    }
+    line += chars.toString();
+    lines.add(line);
+    return lines;
   }
 
 }
