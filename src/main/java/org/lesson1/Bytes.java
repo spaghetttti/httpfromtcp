@@ -3,28 +3,17 @@ package org.lesson1;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.util.ArrayList;
+import java.io.InputStream;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
-import java.util.stream.Collectors;
 
 public class Bytes {
   public static void main(String[] args) throws InterruptedException {
 
     System.out.println("Hello, world!");
-    try (FileInputStream fileInputStream = new FileInputStream(
-        "/Users/asilbekmuminov/code/go-http/httpfromtcp/src/main/java/org/lesson1/messages.txt")) {
+    try (FileInputStream fileInputStream = new FileInputStream("src/main/java/org/lesson1/messages.txt")) {
       System.out.println("Reading file content:");
-      // parse
-      BlockingQueue<String> lines = parse(fileInputStream);
-
-      // output
-      String lline = "";
-      while ((lline = lines.take()) != null) {
-        if (lline.contains("__EOF__")) break;
-        System.out.print("read: " + lline);
-        System.err.println("\n");
-      }
+      read(fileInputStream);
 
     } catch (FileNotFoundException e) {
       System.err.println("File not found: " + e.getMessage());
@@ -34,7 +23,21 @@ public class Bytes {
 
   }
 
-  public static BlockingQueue<String> parse(FileInputStream fileInputStream) throws IOException {
+  public static void read(InputStream inputStream) throws IOException, InterruptedException {
+    // parse
+    BlockingQueue<String> lines = parse(inputStream);
+
+    // output
+    String lline = "";
+    while ((lline = lines.take()) != null) {
+      if (lline.contains("__EOF__"))
+        break;
+      System.out.print("read: " + lline);
+      System.err.println("\n");
+    }
+  }
+
+  public static BlockingQueue<String> parse(InputStream inputStream) throws IOException {
     BlockingQueue<String> lines = new ArrayBlockingQueue<String>(4);
     Thread readeThread = new Thread(() -> {
       try {
@@ -42,7 +45,7 @@ public class Bytes {
         StringBuilder chars = new StringBuilder();
         String line = "";
 
-        while ((data = fileInputStream.read()) != -1) {
+        while ((data = inputStream.read()) != -1) {
           chars.append((char) data);
 
           if (chars.length() == 8) {
