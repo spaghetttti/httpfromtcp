@@ -6,8 +6,6 @@ import java.util.concurrent.BlockingQueue;
 
 import org.lesson1.Bytes;
 
-import java.io.DataInputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
 
 public class TCP {
