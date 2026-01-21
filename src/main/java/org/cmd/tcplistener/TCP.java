@@ -1,12 +1,11 @@
-package org.lesson2;
+package org.cmd.tcplistener;
 
+import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.concurrent.BlockingQueue;
 
 import org.lesson1.Bytes;
-
-import java.io.IOException;
 
 public class TCP {
 
