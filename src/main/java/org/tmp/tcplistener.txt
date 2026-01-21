@@ -1,10 +1,7 @@
 connection accepted
-this should be working fine
-and also saving the txt in the txt file 
-fine
-
-connection closed
-connection accepted
-it still opens the connection the second time 
+sdfa
+afds
+asdf
+asdf
 
 connection closed
