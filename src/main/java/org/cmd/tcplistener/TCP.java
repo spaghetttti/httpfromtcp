@@ -41,6 +41,7 @@ public class TCP {
       data.close();
       System.out.println("connection closed");
     }
+    socket.close();
   }
 
 }

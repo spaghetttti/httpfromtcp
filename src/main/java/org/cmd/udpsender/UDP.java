@@ -6,7 +6,7 @@ import java.io.InputStreamReader;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
-import java.net.InetSocketAddress;
+// import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 
 public class UDP {
@@ -20,22 +20,14 @@ public class UDP {
     }
 
     private static void createConnection() throws IOException {
-        // var inetSocket = new InetSocketAddress(InetAddress.getByName("localhost"), 42069);
-        byte[] buffer = new byte[20];
         InetAddress laddr = InetAddress.getByName("localhost");
-        // System.out.println(laddr.getHostAddress());
-        // System.out.println(laddr.getHostName());
         var dataSocket = new DatagramSocket();
-        // // dataSocket.bind(laddr);
-        // System.out.println(dataSocket.isBound());
-        // System.out.println(dataSocket.isConnected());
-        // System.out.println(dataSocket.getLocalPort());
-        // System.out.println(dataSocket.getInetAddress());
+        boolean running = true;
 
         var bufferedReader = new BufferedReader(new InputStreamReader(System.in));
 
-        while (true) {
-            System.out.println(">");
+        while (running) {
+            System.out.println("> ");
             String line = "";
             try {       
                 line = bufferedReader.readLine();
@@ -45,18 +37,18 @@ public class UDP {
                 System.out.println(e.getMessage());
 
             }
-            var datagramPacket = new DatagramPacket(line.getBytes(), line.getBytes().length, laddr, 42069);
+            byte [] data = line.getBytes();
+            var datagramPacket = new DatagramPacket(data, data.length, laddr, 42069);
             try {
 
                 dataSocket.send(datagramPacket);
             } catch (IOException e) {
                 e.printStackTrace();
                 System.out.println(e.getMessage());
-                // lol do nothing
             } 
             
         }
-
+        dataSocket.close();
 
     }
 
