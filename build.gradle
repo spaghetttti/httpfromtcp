@@ -2,7 +2,7 @@ plugins {
     id 'java'
 }
 
-group = 'org.example'
+group = 'org.internal'
 version = '1.0-SNAPSHOT'
 
 repositories {
@@ -11,10 +11,27 @@ repositories {
 
 dependencies {
     testImplementation platform('org.junit:junit-bom:5.10.0')
-    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.8.0'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
 test {
     useJUnitPlatform()
+}
+
+// Run TCP listener
+task runTcp(type: JavaExec) {
+    group = 'application'
+    description = 'Run the TCP listener'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'org.cmd.tcplistener.TCP'
+}
+
+// Run UDP sender
+task runUdp(type: JavaExec) {
+    group = 'application'
+    description = 'Run the UDP sender'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'org.cmd.udpsender.UDP'
+    standardInput = System.in
 }
