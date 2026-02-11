@@ -1,4 +1,4 @@
-package org.lesson1;
+package org.streamParser;
 
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;

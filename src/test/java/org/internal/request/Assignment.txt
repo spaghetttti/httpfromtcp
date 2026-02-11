@@ -1,0 +1,98 @@
+Claude Agent
+(no content)
+
+Reviewed existing code for HTTP server conversion
+Let me first look at your existing code to understand your current project structure.
+
+Reviewed project structure
+Here's the lesson converted for your Java project:
+
+Parsing the Request Line (Java Edition)
+We're building on top of your TCP listener to parse raw HTTP text into structured data. Given:
+
+
+POST /coffee HTTP/1.1Host: localhost:42069User-Agent: curl/7.81.0Accept: */*Content-Length: 21{"flavor":"dark mode"}
+We want our parser to produce an object like:
+
+
+public class Request {    private RequestLine requestLine;    // later: Map<String, String> headers    // later: byte[] body}
+So our server code has nicely structured HTTP data to work with.
+
+The Request-Line
+HTTP requests start with a request-line:
+
+
+request-line = method SP request-target SP HTTP-version
+For HTTP/1.1, it looks like: GET /coffee HTTP/1.1
+
+Assignment
+For now, we're only parsing the request-line. Test-driven development.
+
+1. Remove the placeholder assertion from TestRequest.java (the assertEquals("TheTestagen", "TheTestagen") line).
+
+2. Define your classes in the org.internal.request package:
+
+In RequestLine.java (create this file):
+
+
+package org.internal.request;public class RequestLine {    private String method;    private String requestTarget;    private String httpVersion;    // constructor, getters, setters}
+In Request.java:
+
+
+package org.internal.request;public class Request {    private RequestLine requestLine;    // constructor, getter, setter}
+You don't need the IRequest.java / IRequestLine.java interfaces for now — plain classes are fine (Go doesn't have interfaces for structs either, the original lesson uses plain structs).
+
+Hey, it's still better than public static void main...
+
+— Actually in Java it literally is public static void main, so we can't even make that joke.
+
+3. Create a static factory method with this signature:
+
+
+public static Request fromReader(InputStream reader) throws IOException
+This goes in your Request class. The InputStream is Java's equivalent of Go's io.Reader. The Request class represents a full parsed HTTP request, but for now we'll just parse the RequestLine part.
+
+4. Add JUnit 5 tests to TestRequest.java:
+
+
+package org.internal.request;import org.junit.jupiter.api.Test;import static org.junit.jupiter.api.Assertions.*;import java.io.ByteArrayInputStream;import java.io.InputStream;import java.nio.charset.StandardCharsets;public class TestRequest {    // Helper: turn a string into an InputStream (Java's strings.NewReader equivalent)    private InputStream toInputStream(String s) {        return new ByteArrayInputStream(s.getBytes(StandardCharsets.UTF_8));    }    @Test    public void testGoodGetRequestLine() throws Exception {        Request r = Request.fromReader(            toInputStream("GET / HTTP/1.1\r\nHost: localhost:42069\r\nUser-Agent: curl/7.81.0\r\nAccept: */*\r\n\r\n")        );        assertNotNull(r);        assertEquals("GET", r.getRequestLine().getMethod());        assertEquals("/", r.getRequestLine().getRequestTarget());        assertEquals("1.1", r.getRequestLine().getHttpVersion());    }    @Test    public void testGoodGetRequestLineWithPath() throws Exception {        Request r = Request.fromReader(            toInputStream("GET /coffee HTTP/1.1\r\nHost: localhost:42069\r\nUser-Agent: curl/7.81.0\r\nAccept: */*\r\n\r\n")        );        assertNotNull(r);        assertEquals("GET", r.getRequestLine().getMethod());        assertEquals("/coffee", r.getRequestLine().getRequestTarget());        assertEquals("1.1", r.getRequestLine().getHttpVersion());    }    @Test    public void testInvalidNumberOfPartsInRequestLine() {        assertThrows(Exception.class, () -> {            Request.fromReader(                toInputStream("/coffee HTTP/1.1\r\nHost: localhost:42069\r\nUser-Agent: curl/7.81.0\r\nAccept: */*\r\n\r\n")            );        });    }}
+Key Java equivalents:
+
+Go	Java
+strings.NewReader("...")	new ByteArrayInputStream("...".getBytes(StandardCharsets.UTF_8))
+require.NoError(t, err)	no explicit check needed — exceptions propagate with throws
+require.NotNil(t, r)	assertNotNull(r)
+assert.Equal(t, expected, actual)	assertEquals(expected, actual)
+require.Error(t, err)	assertThrows(Exception.class, () -> { ... })
+5. Implement Request.fromReader. Tips:
+
+Slurp the entire request: use reader.readAllBytes() (Java 9+) and new String(bytes, StandardCharsets.UTF_8) — this is Java's equivalent of Go's io.ReadAll.
+Create a private parseRequestLine(String line) method to do the actual parsing.
+HTTP newlines are \r\n, not just \n. Split on \r\n to get the first line.
+The request-line always has exactly 3 parts: method SP request-target SP HTTP-version. Use String.split(" ") — Java's String.split is your friend here (Go equivalent: strings.Split).
+Validate the method: only uppercase alphabetic characters (A-Z). Use method.matches("[A-Z]+").
+Validate and extract the HTTP version: it must be in the format HTTP/1.1. Split on / to extract "1.1". We only support HTTP/1.1 for now, so reject anything else.
+Throw an IOException (or a custom exception) for any validation failure — this is Java's equivalent of returning an error in Go.
+6. Add more edge-case tests. Here are the test names from the original lesson — implement Java versions:
+
+Good Request line ✓ (done above)
+Good Request line with path ✓ (done above)
+Good POST Request with path
+Invalid number of parts in request line ✓ (done above)
+Invalid method (out of order) Request line — e.g. GET / HTTP/1.1 but with the parts rearranged
+Invalid version in Request line — e.g. GET / HTTP/2.0
+7. Run the tests:
+
+
+./gradlew test
+Quick Reference: Go → Java Cheat Sheet for this lesson
+Concept	Go	Java
+Struct	type Request struct { ... }	public class Request { ... }
+Public fields	Capitalized: RequestLine	Getter/setter: getRequestLine()
+Constructor function	func RequestFromReader(r io.Reader) (*Request, error)	public static Request fromReader(InputStream r) throws IOException
+Read all bytes	io.ReadAll(reader)	reader.readAllBytes()
+Bytes to string	string(data)	new String(data, StandardCharsets.UTF_8)
+Split string	strings.Split(s, " ")	s.split(" ")
+Error return	return nil, fmt.Errorf("...")	throw new IOException("...")
+Test file	request_test.go	TestRequest.java
+Don't connect the request package to your TCP listener (cmd) code yet — just get the tests green first.

@@ -5,7 +5,7 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.concurrent.BlockingQueue;
 
-import org.lesson1.Bytes;
+import org.streamParser.Bytes;
 
 public class TCP {
 
