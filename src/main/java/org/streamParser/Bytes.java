@@ -37,6 +37,24 @@ public class Bytes {
     }
   }
 
+
+  public static String returnString(InputStream inputStream) throws IOException, InterruptedException {
+    // parse
+    BlockingQueue<String> lines = parse(inputStream);
+
+    // output
+    String lline = "";
+    var resultString = new StringBuilder();
+    while ((lline = lines.take()) != null) {
+      if (lline.contains("__EOF__"))
+        break;
+      resultString.append(lline);
+    }
+
+    return resultString.toString();
+
+  }
+
   public static BlockingQueue<String> parse(InputStream inputStream) throws IOException {
     BlockingQueue<String> lines = new ArrayBlockingQueue<String>(4);
     Thread readeThread = new Thread(() -> {
