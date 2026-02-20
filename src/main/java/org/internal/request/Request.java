@@ -10,9 +10,11 @@ public class Request {
     public RequestLine requestLine;
     public HashMap<String, String> headers;
     public byte[] body;
+    public static String test;
 
     public static Request fromReader(InputStream reader) throws IOException, InterruptedException {
         var string = Bytes.returnString(reader);
+        test = string;
         System.out.println(string);
         return new Request();
     }
@@ -28,5 +30,9 @@ public class Request {
 
     public byte[] getBody() {
       return body;
+    }
+
+    public String getTest() {
+      return test;
     }
 }
