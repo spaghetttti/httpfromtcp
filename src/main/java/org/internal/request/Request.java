@@ -14,9 +14,19 @@ public class Request {
 
     public static Request fromReader(InputStream reader) throws IOException, InterruptedException {
         var string = Bytes.returnString(reader);
+
         test = string;
         System.out.println(string);
+        RequestLine requestLine = parseRequestLine(string.split("\r\n")[0]);
         return new Request();
+    }
+
+    private static RequestLine parseRequestLine(String requestLineString) {
+      String[] parts = requestLineString.split("/");
+      String method = parts[0].trim();
+      String String = parts[1].trim();
+      String httpVersion = parts[2].trim();
+      return new RequestLine(method, String, httpVersion);
     }
 
 
