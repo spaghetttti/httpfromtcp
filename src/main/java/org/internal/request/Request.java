@@ -10,23 +10,40 @@ public class Request {
     public RequestLine requestLine;
     public HashMap<String, String> headers;
     public byte[] body;
-    public static String test;
+    public String test;
 
-    public static Request fromReader(InputStream reader) throws IOException, InterruptedException {
+    public static Request fromReader(InputStream reader) throws Exception, IOException, InterruptedException {
         var string = Bytes.returnString(reader);
-
-        test = string;
-        System.out.println(string);
-        RequestLine requestLine = parseRequestLine(string.split("\r\n")[0]);
-        return new Request();
+        var request = new Request();
+        // my in-house parser in Bytes made \r\n into \r lol 
+        // System.out.println("make \\n and \\r visible: " + string.replace("\n", "\\n").replace("\r", "\\r"));
+        // request.test = string;
+        request.requestLine = request.parseRequestLine(string.split("\r")[0]);
+        return request;
     }
 
-    private static RequestLine parseRequestLine(String requestLineString) {
-      String[] parts = requestLineString.split("/");
+    private RequestLine parseRequestLine(String requestLineString) throws Exception {
+      String[] parts = requestLineString.split(" ");
+      if (parts.length != 3)  { 
+        throw new Exception("Invalid CRLF");
+      }
       String method = parts[0].trim();
-      String String = parts[1].trim();
-      String httpVersion = parts[2].trim();
-      return new RequestLine(method, String, httpVersion);
+      String requestTarget = parts[1].trim();
+      if (!requestTarget.startsWith("/")) { 
+        throw new Exception("Invalid path");
+      }
+      String[] httpParts = parts[2].trim().split("/");
+
+      if (!httpParts[0].equals("HTTP")) {
+        throw new Exception("Unsupported Protocol");
+      } 
+      if (!httpParts[1].equals("1.1")) {
+        throw new Exception("Unsupported HTTP Version");
+      }
+      System.out.println(method);
+      System.out.println(requestTarget);
+      System.out.println(httpParts[1]);
+      return new RequestLine(method, requestTarget, httpParts[1]);
     }
 
 
