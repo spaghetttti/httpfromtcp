@@ -25,7 +25,7 @@ public class Bytes {
 
   public static void read(InputStream inputStream) throws IOException, InterruptedException {
     // parse
-    BlockingQueue<String> lines = parse(inputStream);
+    BlockingQueue<String> lines = parsePer8(inputStream);
 
     // output
     String lline = "";
@@ -40,7 +40,7 @@ public class Bytes {
 
   public static String returnString(InputStream inputStream) throws IOException, InterruptedException {
     // parse
-    BlockingQueue<String> lines = parse(inputStream);
+    BlockingQueue<String> lines = parsePer8(inputStream);
 
     // output
     String lline = "";
@@ -55,7 +55,7 @@ public class Bytes {
 
   }
 
-  public static BlockingQueue<String> parse(InputStream inputStream) throws IOException {
+  public static BlockingQueue<String> parsePer8(InputStream inputStream) throws IOException {
     BlockingQueue<String> lines = new ArrayBlockingQueue<String>(4);
     Thread readeThread = new Thread(() -> {
       try {
@@ -103,4 +103,8 @@ public class Bytes {
     return lines;
   }
 
+  public static BlockingQueue<String> parse(InputStream inputStream) throws IOException {
+        // same idea as persePer8, but instead of arbitrary chunk limit of 8 bytes, we parse everything we got in the inputStream
+        return null;
+  }
 }
