@@ -4,11 +4,10 @@ import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 
+import org.internal.ChunkReader;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-
-import org.internal.ChunkReader;
 import org.junit.jupiter.api.Test;
 
 public class TestRequest {
@@ -127,7 +126,7 @@ public class TestRequest {
     @Test
     public void testGoodGetRequestLineChunked() throws Exception {
         ChunkReader reader = new ChunkReader(
-                "GET / HTTP/1.1\r\nHost: localhost:42069\r\nUser-Agent: curl/7.81.0\r\nAccept: */*\r\n\r\n",
+                "GET / HTTP/1.1\r\nHost: localhost:33333\r\nUser-Agent: curl/7.81.0\r\nAccept: */*\r\n\r\n",
                 3);
         Request r = Request.fromReader(reader);
         assertNotNull(r);

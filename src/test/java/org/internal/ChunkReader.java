@@ -1,7 +1,7 @@
 package org.internal;
 
-import java.io.InputStream;
 import java.io.IOException;
+import java.io.InputStream;
 
 public class ChunkReader extends InputStream {
     private String data;
