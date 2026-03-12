@@ -11,7 +11,7 @@ public class Request {
   public byte[] body;
   public String test;
   private STATE state;
-  private static final StringBuffer stringBuffer = new StringBuffer();
+  private static final StringBuilder stringBuffer = new StringBuilder();
 
   private enum STATE {
     DONE,
@@ -23,39 +23,49 @@ public class Request {
     var request = new Request();
     request.state = STATE.INITIALIZED;
     final int initialBufferSize = 8;
-    byte[] buffer = new byte[initialBufferSize];
+    byte[] buffer = new byte[8];
+    byte[] totalBuffer = new byte[initialBufferSize];
     int pos = 0;
 
-    while ((pos = reader.read(buffer)) == -1 || request.state != STATE.DONE) {
-      System.out.println("pos: " + pos);
-      System.out.println("can i even read the stream?: " + (char) reader.read());
+    while (request.state != STATE.DONE) {
+      pos = reader.read(buffer);
+      // System.out.println("pos: " + pos);
+      // System.out.println("can i even read the stream?: " + (char) pos);
       if (pos != -1) {
+        for (int i = 0; i < pos; i++) {
+          System.out.println((char) buffer[i]);
+        }
         int consumedBytes = request.parse(Arrays.copyOfRange(buffer, 0, pos));
         if (consumedBytes == 0) { 
-          buffer = new byte[initialBufferSize * 2];
+          totalBuffer = new byte[totalBuffer.length * 2];
+          System.arraycopy(buffer, 0, totalBuffer, 0, buffer.length);
         } else {
-          request.parseRequestLine(stringBuffer.toString());
+          System.arraycopy(buffer, 0, totalBuffer, 0, consumedBytes);
         }
+      } else {
+        break;
       }
     }
+
+    request.parseRequestLine(stringBuffer.toString());
+
 
     return request;
   }
 
   private int parse(byte[] data) throws IOException {
     int bytesConsumed = 0;
-    int initialSize = stringBuffer.length();
-    // return 0 if can't find \r\n (or just \r bytesConsumed if haven't fixed Bytes.parse()
     for (byte bd: data) {
-      System.out.println(bd);
-      System.out.println((char) bd);
+      // System.out.println("step 1 " + bd);
+      // System.out.println("step 2 " + (char) bd);
       stringBuffer.append((char) bd);
       System.out.println(stringBuffer.toString());
       bytesConsumed++;
     }
-
-    if (!stringBuffer.toString().contains("\\r\\n")) {
-      stringBuffer.delete(initialSize, bytesConsumed);
+    if (stringBuffer.toString().contains("\r\n")) {
+      System.out.println("DELETE");
+      state = STATE.DONE;
+      // stringBuffer.setLength(0);
       return 0;
     }
 
@@ -95,7 +105,7 @@ public class Request {
       throw new Exception("Unsupported Protocol");
     }
     if (!httpParts[1].equals("1.1")) {
-      throw new Exception("Unsupported HTTP Version");
+      throw new Exception("Unsupported HTTP Version" + httpParts[1]);
     }
     return httpParts[1];
   }
