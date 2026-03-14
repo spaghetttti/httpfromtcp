@@ -1,6 +1,6 @@
 package org.internal.request;
 
-import  java.io.IOException;
+import java.io.IOException;
 import java.io.InputStream;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -11,7 +11,6 @@ public class Request {
   public byte[] body;
   public String test;
   private STATE state;
-  private static final StringBuilder stringBuffer = new StringBuilder();
 
   private enum STATE {
     DONE,
@@ -22,59 +21,65 @@ public class Request {
     // var string = Bytes.returnString(reader);
     var request = new Request();
     request.state = STATE.INITIALIZED;
-    final int initialBufferSize = 8;
     byte[] buffer = new byte[8];
-    byte[] totalBuffer = new byte[initialBufferSize];
-    int pos = 0;
+    int position = 0;
+    int readFromIndex = 0;
+    int consumedBytes = 0;
+    int counter = 0;
 
     while (request.state != STATE.DONE) {
-      pos = reader.read(buffer);
-      // System.out.println("pos: " + pos);
-      // System.out.println("can i even read the stream?: " + (char) pos);
-      if (pos != -1) {
-        for (int i = 0; i < pos; i++) {
-          System.out.println((char) buffer[i]);
-        }
-        int consumedBytes = request.parse(Arrays.copyOfRange(buffer, 0, pos));
-        if (consumedBytes == 0) { 
-          totalBuffer = new byte[totalBuffer.length * 2];
-          System.arraycopy(buffer, 0, totalBuffer, 0, buffer.length);
-        } else {
-          System.arraycopy(buffer, 0, totalBuffer, 0, consumedBytes);
+      System.out.println("read counter: " + counter++); 
+      position = reader.read(buffer, readFromIndex, buffer.length - readFromIndex);
+      readFromIndex += position;
+      System.out.println("[position]: " + position);
+      System.out.println("[readFromIndex]: " + readFromIndex);
+      if (position != -1) {
+        System.out.println("[consumedBytes] pre: " + consumedBytes);
+        consumedBytes = request.parse(buffer, request);
+        System.out.println("[consumedBytes] post: " + consumedBytes);
+        if (consumedBytes != 0) {
+          System.arraycopy(new byte[consumedBytes], 0, buffer, 0, consumedBytes);
+        } else if (readFromIndex + consumedBytes >= buffer.length - 1 ) {
+          System.out.println("[buffer.length]: " + buffer.length);
+          var tempBuffer = new byte[buffer.length * 2];
+          System.out.println("[tempBuffer.length]: " + tempBuffer.length);
+          System.arraycopy(buffer, 0, tempBuffer, 0, buffer.length);
+          buffer = tempBuffer;
+          System.out.println("[buffer.length]: " + buffer.length);
         }
       } else {
         break;
       }
     }
 
-    request.parseRequestLine(stringBuffer.toString());
-
+    
+    // request.requestLine = request.parseRequestLine(stringBuffer.toString().split("\r\n")[0]);
+    System.out.println("request.requestLine" + request.requestLine.getMethod());
 
     return request;
   }
 
-  private int parse(byte[] data) throws IOException {
+  private int parse(byte[] data, Request request) throws Exception {
+    var stringBuffer = new StringBuffer();
     int bytesConsumed = 0;
     for (byte bd: data) {
-      // System.out.println("step 1 " + bd);
-      // System.out.println("step 2 " + (char) bd);
       stringBuffer.append((char) bd);
       System.out.println(stringBuffer.toString());
       bytesConsumed++;
     }
     if (stringBuffer.toString().contains("\r\n")) {
-      System.out.println("DELETE");
       state = STATE.DONE;
-      // stringBuffer.setLength(0);
-      return 0;
+      request.requestLine = parseRequestLine(stringBuffer.toString().split("\r\n")[0]);
+      stringBuffer.setLength(0);
+      return bytesConsumed;
     }
-
-    return bytesConsumed;
+    stringBuffer.setLength(0);
+    return 0;
   }
 
   private RequestLine parseRequestLine(String requestLineString) throws Exception {
     String[] parts = requestLineString.split(" ");
-    // method)
+    // method
     if (parts.length != 3) {
       throw new Exception("Invalid CRLF");
     }
@@ -83,9 +88,9 @@ public class Request {
     String requestTarget = parseTarget(parts[1].trim());
     String httpVersion = parseHTTPVersion(parts[2].trim().split("/"));
     
-    System.out.println(method);
-    System.out.println(requestTarget);
-    System.out.println(httpVersion);
+    System.out.println("[parseRequestLine]: " + method);
+    System.out.println("[parseRequestLine]: " + requestTarget);
+    System.out.println("[parseRequestLine]: " + httpVersion);
     return new RequestLine(method, requestTarget, httpVersion);
   }
 
@@ -104,13 +109,15 @@ public class Request {
     if (!httpParts[0].equals("HTTP")) {
       throw new Exception("Unsupported Protocol");
     }
-    if (!httpParts[1].equals("1.1")) {
-      throw new Exception("Unsupported HTTP Version" + httpParts[1]);
+    System.out.println("wtf: " + httpParts[1] + " / " + httpParts[1].equals("1.1"));
+    if (!httpParts[1].split(" ")[0].trim().equals("1.1")) {
+      throw new Exception("Unsupported HTTP Version: " + httpParts[1]);
     }
     return httpParts[1];
   }
 
   public RequestLine getRequestLine() {
+    System.out.println("[getRequestLine] " + requestLine);
     return requestLine;
   }
 

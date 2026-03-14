@@ -36,3 +36,26 @@ How many bytes you've parsed from the buffer
 The end result is the same (aside from the fact that it properly handles chunks as they arrive) in that it returns a parsed Request once the reader is exhausted.
 Run tests with ./gradlew test.
 
+TIPS (in golang): 
+ips
+Implementation help for func (r *Request) parse(data []byte) (int, error):
+
+If the state of the parser is "initialized", it should call parseRequestLine.
+If there is an error, it should just return the error.
+If zero bytes are parsed, but no error is returned, it should return 0 and nil: it needs more data.
+If bytes are consumed successfully, it should update the .RequestLine field and change the state to "done".
+If the state of the parser is "done", it should return an error that says something like "error: trying to read data in a done state"
+If the state is anything else, it should return an error that says something like "error: unknown state"
+Implementation help for RequestFromReader:
+
+It shouldn't call io.ReadAll anymore. Instead, it should create a new buffer: buf := make([]byte, bufferSize, bufferSize). Set bufferSize as a constant at the top of the file, and for now, just a size of 8. We want to test with small buffers to make sure our parser can handle it.
+Create a new readToIndex variable and set it to 0. This will keep track of how much data we've read from the io.Reader into the buffer.
+Create a new Request struct and set the state to "initialized".
+While the state of the parser is not "done":
+If the buffer is full (we've read data into the entire buffer), grow it. Create a new slice that's twice the size and copy the old data into the new slice.
+Read from the io.Reader into the buffer starting at readToIndex.
+If you hit the end of the reader (io.EOF) set the state to "done" and break out of the loop.
+Update readToIndex with the number of bytes you actually read
+Call r.parse passing the slice of the buffer that has data that you've actually read so far
+Remove the data that was parsed successfully from the buffer (this keeps our buffer small and memory efficient). I used the copy function and a new slice to do this.
+Decrement the readToIndex by the number of bytes that were parsed so that it matches the new length of the buffer.
