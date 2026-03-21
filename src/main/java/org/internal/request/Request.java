@@ -2,6 +2,7 @@ package org.internal.request;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.HashMap;
 
@@ -30,12 +31,13 @@ public class Request {
     while (request.state != STATE.DONE) {
       // just for testing
       System.out.println("read counter: " + counter++);
-      // fill out buffer with read bytes and return how many did we read 
+      // fill out buffer with read bytes and return how many did we read
       bytesRead = reader.read(buffer);
       System.out.println("[bytesRead]: " + bytesRead);
       if (bytesRead != -1) {
 
-        // if the number of newly read bytes does not fit in the mainBuffer , we double mainBuffers size while saving it's previous values
+        // if the number of newly read bytes does not fit in the mainBuffer , we double
+        // mainBuffers size while saving it's previous values
         if (readToIndex + bytesRead >= mainBuffer.length - 1) {
           System.out.println("[mainBuffer.length]: " + mainBuffer.length);
           var tempBuffer = new byte[mainBuffer.length * 2];
@@ -43,45 +45,47 @@ public class Request {
           System.arraycopy(mainBuffer, 0, tempBuffer, 0, readToIndex);
           mainBuffer = tempBuffer;
         }
-        // we safely copy the newly read bytes into mainBuffer now 
+        // we safely copy the newly read bytes into mainBuffer now
         System.out.println("[consumedBytes] pre: " + consumedBytes);
         System.arraycopy(buffer, 0, mainBuffer, readToIndex, bytesRead);
-        // new readToIndex meaning previous point up until we have read + newly read bytes (readToIndex + bytesRead)
+        // new readToIndex meaning previous point up until we have read + newly read
+        // bytes (readToIndex + bytesRead)
         readToIndex += bytesRead;
         System.out.println("[readToIndex]: " + readToIndex);
         consumedBytes = request.parse(Arrays.copyOfRange(mainBuffer, 0, readToIndex), request);
         System.out.println("[consumedBytes] post: " + consumedBytes);
-        if (consumedBytes  != 0) {
-          // we found the CRLF, time to assign requestLine and clean the mainBuffer + buffer
-          buffer = new byte[8];
-          mainBuffer = new byte[8];
-          // later to add logic to continue reading the steam to parse other http parts
-          readToIndex -= consumedBytes;
-          break;
-        } 
-      } 
-    }
+        if (consumedBytes != 0) {
 
+          // we found the CRLF, time to assign requestLine
+          // later to add logic to continue reading the steam to parse other http parts,
+          // but save the leftover unparsed yet bytes
+          readToIndex -= consumedBytes;
+          System.arraycopy(mainBuffer, consumedBytes, mainBuffer, 0, readToIndex);
+          // just so the tests pass, will remove later
+          break;
+        }
+      }
+    }
 
     return request;
   }
 
   private int parse(byte[] data, Request request) throws Exception {
-    var stringBuffer = new StringBuffer();
-    int bytesConsumed = 0;
-    for (byte bd : data) {
-      stringBuffer.append((char) bd);
-      System.out.println((char) bd);
-      // bytesConsumed++;
+    // var stringBuffer = new StringBuffer();
+    // int bytesConsumed = 0;
+    for (int i = 0; i < data.length - 2; i++) {
+      System.out.println(new String(Arrays.copyOfRange(data, 0, i), StandardCharsets.UTF_8));
+
+      if ((char) data[i] == '\r' && data[i + 1] == '\n') {
+        System.out.println("here!!!");
+        state = STATE.DONE;
+        request.requestLine = parseRequestLine(new String(Arrays.copyOfRange(data, 0, i + 1), StandardCharsets.UTF_8));
+        // bytesConsumed = stringBuffer.toString().indexOf("\r\n");
+        // stringBuffer.setLength(0);
+        return 1 + i;
+      }
     }
-    if (stringBuffer.toString().contains("\r\n")) {
-      state = STATE.DONE;
-      request.requestLine = parseRequestLine(stringBuffer.toString().split("\r\n")[0]);
-      bytesConsumed = stringBuffer.toString().indexOf("\r\n");
-      stringBuffer.setLength(0);
-      return 2 + bytesConsumed;
-    }
-    stringBuffer.setLength(0);
+    // stringBuffer.setLength(0);
     return 0;
   }
 
