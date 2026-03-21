@@ -1,6 +1,5 @@
 package org.internal.request;
 
-import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
@@ -18,7 +17,7 @@ public class Request {
     INITIALIZED
   }
 
-  public static Request fromReader(InputStream reader) throws Exception, IOException, InterruptedException {
+  public static Request fromReader(InputStream reader) throws Exception {
     var request = new Request();
     request.state = STATE.INITIALIZED;
     byte[] buffer = new byte[8];
@@ -62,8 +61,13 @@ public class Request {
           readToIndex -= consumedBytes;
           System.arraycopy(mainBuffer, consumedBytes, mainBuffer, 0, readToIndex);
           // just so the tests pass, will remove later
-          break;
         }
+      } else {
+        break;
+      }
+
+      if (request.state == STATE.DONE) {
+        break;
       }
     }
 
@@ -73,17 +77,29 @@ public class Request {
   private int parse(byte[] data, Request request) throws Exception {
     // var stringBuffer = new StringBuffer();
     // int bytesConsumed = 0;
-    for (int i = 0; i < data.length - 2; i++) {
-      System.out.println(new String(Arrays.copyOfRange(data, 0, i), StandardCharsets.UTF_8));
+    if (request.state == STATE.INITIALIZED) {
+      for (int i = 0; i < data.length - 1; i++) {
+        System.out.println(new String(Arrays.copyOfRange(data, 0, i), StandardCharsets.UTF_8));
 
-      if ((char) data[i] == '\r' && data[i + 1] == '\n') {
-        System.out.println("here!!!");
-        state = STATE.DONE;
-        request.requestLine = parseRequestLine(new String(Arrays.copyOfRange(data, 0, i + 1), StandardCharsets.UTF_8));
-        // bytesConsumed = stringBuffer.toString().indexOf("\r\n");
-        // stringBuffer.setLength(0);
-        return 1 + i;
+        if (i > 3 && (char) data[i - 3] == '\r' && data[i - 2] == '\n' && (char)
+          data[i - 1] == '\r' && data[i] == '\n') {
+          System.out.println("why");
+          // state = STATE.DONE;
+          }
+
+        if (i > 1 && (char) data[i - 1] == '\r' && data[i] == '\n') {
+          System.out.println("here!!!");
+          request.state = STATE.DONE;
+          request.requestLine = parseRequestLine(new String(Arrays.copyOfRange(data, 0, i - 1), StandardCharsets.UTF_8));
+          // bytesConsumed = stringBuffer.toString().indexOf("\r\n");
+          // stringBuffer.setLength(0);
+          return 1 + i;
+        }
+
+
       }
+    } else {
+      throw new Exception("state in not initialized");
     }
     // stringBuffer.setLength(0);
     return 0;

@@ -5,13 +5,14 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.concurrent.BlockingQueue;
 
+import org.internal.request.Request;
 import org.streamParser.Bytes;
 
 public class TCP {
 
   static ServerSocket socket;
 
-  public static void main(String[] args) {
+  public static void main(String[] args) throws Exception {
     try {
       createConnection();
     } catch (IOException e) {
@@ -23,20 +24,26 @@ public class TCP {
     }
   }
 
-  static public void createConnection() throws IOException, InterruptedException {
+  static public void createConnection() throws Exception {
     socket = new ServerSocket(42069);
     Socket data = null;
     while ((data = socket.accept()) != null) {
       System.out.println("connection accepted");
 
-      BlockingQueue<String> lines = Bytes.parse(data.getInputStream());
+      var request = new Request();
+      request = request.fromReader(data.getInputStream());
       
-      String line;
-      while ((line = lines.take()) != null) {
-        if (line.equals("__EOF__"))
-          break;
-        System.out.println(line);
-      }
+
+      System.out.println(request.getRequestLine().toString());
+
+      // BlockingQueue<String> lines = Bytes.parse(data.getInputStream());
+      
+      // String line;
+      // while ((line = lines.take()) != null) {
+      //   if (line.equals("__EOF__"))
+      //     break;
+      //   System.out.println(line);
+      // }
 
       data.close();
       System.out.println("connection closed");

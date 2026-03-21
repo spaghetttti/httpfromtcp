@@ -36,6 +36,11 @@ public class RequestLine {
 		return httpVersion;
 	}
 
+	public String toString() {
+		return new StringBuilder().append("\n").append("- Method: ").append(getMethod()).append("\n").append("- Target:")
+				.append(getRequestTarget()).append("\n").append("- Version: ").append(getHttpVersion()).append("\n").toString();
+	}
+
 }
 
 enum METHOD_NAMES {
