@@ -24,6 +24,16 @@ public class TestRequest {
         return new ByteArrayInputStream(s.getBytes(StandardCharsets.UTF_8));
     }
 
+    private void assertRequestLineForChunkSize(String rawRequest, int chunkSize, String method, String target,
+            String version) throws Exception {
+        ChunkReader reader = new ChunkReader(rawRequest, chunkSize);
+        Request r = Request.fromReader(reader);
+        assertNotNull(r);
+        assertEquals(method, r.getRequestLine().getMethod());
+        assertEquals(target, r.getRequestLine().getRequestTarget());
+        assertEquals(version, r.getRequestLine().getHttpVersion());
+    }
+
     @Test
     public void testGoodGetRequestLine() throws Exception {
         Request r = Request.fromReader(
@@ -158,5 +168,30 @@ public class TestRequest {
         assertEquals("GET", r.getRequestLine().getMethod());
         assertEquals("/coffee", r.getRequestLine().getRequestTarget());
         assertEquals("1.1", r.getRequestLine().getHttpVersion());
+    }
+
+    @Test
+    public void testGoodGetRequestLineChunkedAllChunkSizes() throws Exception {
+        String request = "GET / HTTP/1.1\r\nHost: localhost:42069\r\nUser-Agent: curl/7.81.0\r\nAccept: */*\r\n\r\n";
+        for (int chunkSize = 1; chunkSize <= request.length(); chunkSize++) {
+            assertRequestLineForChunkSize(request, chunkSize, "GET", "/", "1.1");
+        }
+    }
+
+    @Test
+    public void testGoodGetRequestLineWithPathChunkedAllChunkSizes() throws Exception {
+        String request = "GET /coffee HTTP/1.1\r\nHost: localhost:42069\r\nUser-Agent: curl/7.81.0\r\nAccept: */*\r\n\r\n";
+        for (int chunkSize = 1; chunkSize <= request.length(); chunkSize++) {
+            assertRequestLineForChunkSize(request, chunkSize, "GET", "/coffee", "1.1");
+        }
+    }
+
+    @Test
+    public void testChunkedInvalidMethodThrows() {
+        String request = "READ /stuff HTTP/1.1\r\nHost: localhost:42069\r\n\r\n";
+        for (int chunkSize = 1; chunkSize <= request.length(); chunkSize++) {
+            int size = chunkSize;
+            assertThrows(Exception.class, () -> Request.fromReader(new ChunkReader(request, size)));
+        }
     }
 }

@@ -1,61 +1,146 @@
+# Parsing a Stream (Java version, converted from Go)
 
-Parsing a Stream Assignment (Java Version)
-Unfortunately parsing code tends to be just one edge case after another. Remember how I said TCP guarantees data to be in order? That's true, but I never said it had to be complete. TCP (and by extension, HTTP) is a streaming protocol, which means we receive data in chunks and should be able to parse it as it comes in.
+Unfortunately parsing code tends to be just one edge case after another. Remember how we said TCP guarantees data to be in order? That's true, but we never said it had to be complete. TCP (and by extension, HTTP) is a streaming protocol, which means we receive data in chunks and should be able to parse it as it comes in.
 
-So, instead of a full HTTP request, we might just get the first few characters, like this:
+So, instead of a full HTTP request, we might just get the first few characters, like:
+
+```
+GE
+```
 
 We need to manage the state of our parser to handle incomplete reads. For example, maybe in the first pass, our parser only gets:
 
+```
+GE
+```
+
 It needs to be smart enough to know that it's not done yet and keep reading until it gets the full request line:
 
-Assignment
-Create a ChunkReader class in your test directory that simulates reading a variable number of bytes per read:
-Update your test suite to use the ChunkReader type and test for different numbers of bytes read per chunk:
-Be sure to test values as low as 1 and as high as the length of the request string. Your code should work under all conditions.
+```
+GET /coffee HTTP/1.1
+```
 
-Update your parseRequestLine to return the number of bytes it consumed. If it can't find a \r\n (this is important!) it should return 0 and no error. This just means that it needs more data before it can parse the request line.
+---
 
-Add a new internal enum to your Request class to track the state of the parser. For now, you just need 2 states:
+## Assignment
 
-INITIALIZED
-DONE
-Implement a new int parse(byte[] data) method on your Request class:
+### 1. ChunkReader (provided)
 
-It accepts all currently unparsed bytes from the buffer
-It updates the "state" of the parser, and the parsed RequestLine field
-It returns the number of bytes it consumed (meaning successfully parsed)
-It throws an Exception if it encountered an error
-Update the fromReader method:
+Use the provided `ChunkReader` in your test directory. It extends `InputStream` and overrides `read(byte[] b)` so that each call reads at most `numBytesPerRead` bytes, simulating a variable number of bytes per read from a network connection. You will use **only** `read(byte[] b)` (the 1-arg form) in your solution, so it works correctly with this reader.
 
-Instead of reading all the bytes and then parsing the request line, it should use a loop to continually read from the reader and parse new chunks using the parse method.
-The loop should continue until the parser is in the DONE state.
-You'll need to keep track of:
-A buffer to read data into (byte[]). Start with a size of 8 and grow it as needed. Shift data in and out of it so you don't need to keep storing already-parsed data.
-How many bytes you've read from the reader
-How many bytes you've parsed from the buffer
-The end result is the same (aside from the fact that it properly handles chunks as they arrive) in that it returns a parsed Request once the reader is exhausted.
-Run tests with ./gradlew test.
+Reference implementation (already in the project):
 
-TIPS (in golang): 
-ips
-Implementation help for func (r *Request) parse(data []byte) (int, error):
+```java
+// ChunkReader.read(byte[] p) — reads up to numBytesPerRead bytes per call
+@Override
+public int read(byte[] p) throws IOException {
+    if (pos >= data.length()) {
+        return -1;
+    }
+    int endIndex = Math.min(pos + numBytesPerRead, data.length());
+    int n = 0;
+    for (int i = pos; i < endIndex && n < p.length; i++) {
+        p[n++] = (byte) data.charAt(i);
+    }
+    pos += n;
+    return n;
+}
+```
 
-If the state of the parser is "initialized", it should call parseRequestLine.
-If there is an error, it should just return the error.
-If zero bytes are parsed, but no error is returned, it should return 0 and nil: it needs more data.
-If bytes are consumed successfully, it should update the .RequestLine field and change the state to "done".
-If the state of the parser is "done", it should return an error that says something like "error: trying to read data in a done state"
-If the state is anything else, it should return an error that says something like "error: unknown state"
-Implementation help for RequestFromReader:
+### 2. Tests
 
-It shouldn't call io.ReadAll anymore. Instead, it should create a new buffer: buf := make([]byte, bufferSize, bufferSize). Set bufferSize as a constant at the top of the file, and for now, just a size of 8. We want to test with small buffers to make sure our parser can handle it.
-Create a new readToIndex variable and set it to 0. This will keep track of how much data we've read from the io.Reader into the buffer.
-Create a new Request struct and set the state to "initialized".
-While the state of the parser is not "done":
-If the buffer is full (we've read data into the entire buffer), grow it. Create a new slice that's twice the size and copy the old data into the new slice.
-Read from the io.Reader into the buffer starting at readToIndex.
-If you hit the end of the reader (io.EOF) set the state to "done" and break out of the loop.
-Update readToIndex with the number of bytes you actually read
-Call r.parse passing the slice of the buffer that has data that you've actually read so far
-Remove the data that was parsed successfully from the buffer (this keeps our buffer small and memory efficient). I used the copy function and a new slice to do this.
-Decrement the readToIndex by the number of bytes that were parsed so that it matches the new length of the buffer.
+Update your test suite to use `ChunkReader` and test different chunk sizes:
+
+- **Good GET request line** — e.g. `numBytesPerRead: 3`
+- **Good GET request line with path** — e.g. `numBytesPerRead: 1`
+
+Test with values as low as 1 and as high as the length of the request string. Your code should work under all conditions.
+
+Example test pattern:
+
+```java
+ChunkReader reader = new ChunkReader(
+    "GET / HTTP/1.1\r\nHost: localhost:42069\r\nUser-Agent: curl/7.81.0\r\nAccept: */*\r\n\r\n",
+    3);
+Request r = Request.fromReader(reader);
+assertNotNull(r);
+assertEquals("GET", r.getRequestLine().getMethod());
+assertEquals("/", r.getRequestLine().getRequestTarget());
+assertEquals("1.1", r.getRequestLine().getHttpVersion());
+```
+
+### 3. parseRequestLine
+
+Update `parseRequestLine` so that it **returns the number of bytes it consumed** (as an `int`). If it cannot find `\r\n`, it should return **0** and **not** throw. Returning 0 means "I need more data before I can parse the request line."
+
+So you need a way to try parsing from a byte slice: e.g. a method that takes the current buffer (or a string built from it), looks for `\r\n`, and returns either (bytes consumed, including the `\r\n`) or 0 if no `\r\n` is present.
+
+### 4. Parser state
+
+Add an internal enum (or int constants) to your `Request` class to track the state of the parser. For now you need only two states:
+
+- **INITIALIZED**
+- **DONE**
+
+### 5. parse(byte[] data)
+
+Implement a method that:
+
+- Accepts **all currently unparsed bytes** (the slice of your buffer that has data).
+- Updates the parser **state** and the parsed **RequestLine** field when it successfully parses a line.
+- **Returns** the number of bytes it consumed (successfully parsed).
+- **Throws** an exception if it encounters an error.
+
+See the Tips section below for detailed behavior.
+
+### 6. fromReader(InputStream reader)
+
+Update `fromReader` so that it:
+
+- Does **not** read the entire stream into one big byte array or string first.
+- Uses a **loop** that repeatedly reads from the reader and calls `parse` with new data.
+- Continues until the parser is in the **DONE** state.
+
+You must keep track of:
+
+1. **A buffer (`byte[]`)** to hold unparsed data. Start with length 8 and grow it as needed. Shift data so you don’t keep already-parsed bytes in the buffer.
+2. **How many bytes are valid in the buffer** — e.g. a variable like `readToIndex`: "I have read this many bytes from the reader into the buffer so far" (and after shifting, "this many bytes of unparsed data remain in the buffer").
+
+Because the provided `ChunkReader` only overrides `read(byte[] b)` (it writes from index 0), use this pattern:
+
+- Allocate a **main buffer** for unparsed data (start size 8).
+- When you need more data: read into a **temporary byte array** using `reader.read(byte[] b)` (e.g. size 8 or the remaining space in your main buffer). Then **append** those bytes into your main buffer (e.g. copy the temp bytes into the main buffer at position `readToIndex`). Then increase `readToIndex` by the number of bytes you just read.
+- When the main buffer is full before you have parsed a line, **grow** it (e.g. double the size, copy old data into the new array).
+- Call `parse` with the **slice** of the main buffer that contains valid data (from 0 to `readToIndex`).
+- When `parse` returns a positive number of consumed bytes: **remove** those bytes from the front of the buffer (e.g. copy `buffer[consumed .. readToIndex]` to `buffer[0 ..]`) and decrease `readToIndex` by that amount.
+
+The end result is the same as before: you return a parsed `Request` (with at least the request line set) once the reader is exhausted and the parser is done.
+
+Run tests with `./gradlew test`.
+
+---
+
+## Tips
+
+### parse(byte[] data)
+
+- If the state is **INITIALIZED**, try to parse the request line from `data` (look for `\r\n`).
+  - If there is an error (invalid format), throw.
+  - If there is no `\r\n` yet, return **0** and do not throw (need more data).
+  - If you successfully parse a line, set the `RequestLine` field, set state to **DONE**, and return the number of bytes consumed (including `\r\n`).
+- If the state is **DONE**, throw an error such as `"error: trying to read data in a done state"`.
+- For any other state, throw something like `"error: unknown state"`.
+
+### fromReader
+
+- Do not use "read everything" (e.g. a helper that reads the whole stream into one array). Instead:
+  1. Create a buffer: `byte[] buffer = new byte[BUFFER_SIZE];` with `BUFFER_SIZE = 8` (as a constant).
+  2. Use a variable `readToIndex = 0` (how many bytes of valid, unparsed data are in the buffer).
+  3. Create a `Request` and set its state to **INITIALIZED**.
+  4. **While** the parser state is not **DONE**:
+     - If the buffer is full (`readToIndex == buffer.length`), grow it: new array of twice the size, copy `buffer[0..readToIndex]` into it, replace `buffer`.
+     - Read from the reader using **`read(byte[] b)`**: read into a temporary array, then copy those bytes into your main buffer at `readToIndex`, and add the number of bytes read to `readToIndex`. If `read` returns `-1` (EOF), set state to **DONE** and break.
+     - Call `parse` with the slice of the buffer that has data (e.g. `Arrays.copyOfRange(buffer, 0, readToIndex)` or pass buffer and length).
+     - If `parse` returns `consumed > 0`: remove the consumed bytes from the front (e.g. `System.arraycopy(buffer, consumed, buffer, 0, readToIndex - consumed)`), then set `readToIndex -= consumed`.
+
+This keeps the buffer small and avoids storing already-parsed data.

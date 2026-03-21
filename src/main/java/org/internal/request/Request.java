@@ -18,43 +18,50 @@ public class Request {
   }
 
   public static Request fromReader(InputStream reader) throws Exception, IOException, InterruptedException {
-    // var string = Bytes.returnString(reader);
     var request = new Request();
     request.state = STATE.INITIALIZED;
     byte[] buffer = new byte[8];
-    int position = 0;
-    int readFromIndex = 0;
+    byte[] mainBuffer = new byte[8];
+    int bytesRead = 0;
+    int readToIndex = 0;
     int consumedBytes = 0;
     int counter = 0;
 
     while (request.state != STATE.DONE) {
-      System.out.println("read counter: " + counter++); 
-      position = reader.read(buffer, readFromIndex, buffer.length - readFromIndex);
-      readFromIndex += position;
-      System.out.println("[position]: " + position);
-      System.out.println("[readFromIndex]: " + readFromIndex);
-      if (position != -1) {
-        System.out.println("[consumedBytes] pre: " + consumedBytes);
-        consumedBytes = request.parse(buffer, request);
-        System.out.println("[consumedBytes] post: " + consumedBytes);
-        if (consumedBytes != 0) {
-          System.arraycopy(new byte[consumedBytes], 0, buffer, 0, consumedBytes);
-        } else if (readFromIndex + consumedBytes >= buffer.length - 1 ) {
-          System.out.println("[buffer.length]: " + buffer.length);
-          var tempBuffer = new byte[buffer.length * 2];
+      // just for testing
+      System.out.println("read counter: " + counter++);
+      // fill out buffer with read bytes and return how many did we read 
+      bytesRead = reader.read(buffer);
+      System.out.println("[bytesRead]: " + bytesRead);
+      if (bytesRead != -1) {
+
+        // if the number of newly read bytes does not fit in the mainBuffer , we double mainBuffers size while saving it's previous values
+        if (readToIndex + bytesRead >= mainBuffer.length - 1) {
+          System.out.println("[mainBuffer.length]: " + mainBuffer.length);
+          var tempBuffer = new byte[mainBuffer.length * 2];
           System.out.println("[tempBuffer.length]: " + tempBuffer.length);
-          System.arraycopy(buffer, 0, tempBuffer, 0, buffer.length);
-          buffer = tempBuffer;
-          System.out.println("[buffer.length]: " + buffer.length);
+          System.arraycopy(mainBuffer, 0, tempBuffer, 0, readToIndex);
+          mainBuffer = tempBuffer;
         }
-      } else {
-        break;
-      }
+        // we safely copy the newly read bytes into mainBuffer now 
+        System.out.println("[consumedBytes] pre: " + consumedBytes);
+        System.arraycopy(buffer, 0, mainBuffer, readToIndex, bytesRead);
+        // new readToIndex meaning previous point up until we have read + newly read bytes (readToIndex + bytesRead)
+        readToIndex += bytesRead;
+        System.out.println("[readToIndex]: " + readToIndex);
+        consumedBytes = request.parse(Arrays.copyOfRange(mainBuffer, 0, readToIndex), request);
+        System.out.println("[consumedBytes] post: " + consumedBytes);
+        if (consumedBytes  != 0) {
+          // we found the CRLF, time to assign requestLine and clean the mainBuffer + buffer
+          buffer = new byte[8];
+          mainBuffer = new byte[8];
+          // later to add logic to continue reading the steam to parse other http parts
+          readToIndex -= consumedBytes;
+          break;
+        } 
+      } 
     }
 
-    
-    // request.requestLine = request.parseRequestLine(stringBuffer.toString().split("\r\n")[0]);
-    System.out.println("request.requestLine" + request.requestLine.getMethod());
 
     return request;
   }
@@ -62,16 +69,17 @@ public class Request {
   private int parse(byte[] data, Request request) throws Exception {
     var stringBuffer = new StringBuffer();
     int bytesConsumed = 0;
-    for (byte bd: data) {
+    for (byte bd : data) {
       stringBuffer.append((char) bd);
-      System.out.println(stringBuffer.toString());
-      bytesConsumed++;
+      System.out.println((char) bd);
+      // bytesConsumed++;
     }
     if (stringBuffer.toString().contains("\r\n")) {
       state = STATE.DONE;
       request.requestLine = parseRequestLine(stringBuffer.toString().split("\r\n")[0]);
+      bytesConsumed = stringBuffer.toString().indexOf("\r\n");
       stringBuffer.setLength(0);
-      return bytesConsumed;
+      return 2 + bytesConsumed;
     }
     stringBuffer.setLength(0);
     return 0;
@@ -81,16 +89,16 @@ public class Request {
     String[] parts = requestLineString.split(" ");
     // method
     if (parts.length != 3) {
-      throw new Exception("Invalid CRLF");
+      throw new Exception(" Invalid CRLF");
     }
 
     String method = parseMethod(parts[0]);
     String requestTarget = parseTarget(parts[1].trim());
     String httpVersion = parseHTTPVersion(parts[2].trim().split("/"));
-    
-    System.out.println("[parseRequestLine]: " + method);
-    System.out.println("[parseRequestLine]: " + requestTarget);
-    System.out.println("[parseRequestLine]: " + httpVersion);
+
+    // System.out.println("[parseRequestLine]: " + method);
+    // System.out.println("[parseRequestLine]: " + requestTarget);
+    // System.out.println("[parseRequestLine]: " + httpVersion);
     return new RequestLine(method, requestTarget, httpVersion);
   }
 
@@ -98,7 +106,7 @@ public class Request {
     return method.trim();
   }
 
-  private String parseTarget(String target)throws Exception {
+  private String parseTarget(String target) throws Exception {
     if (!target.startsWith("/")) {
       throw new Exception("Invalid path");
     }
@@ -109,7 +117,6 @@ public class Request {
     if (!httpParts[0].equals("HTTP")) {
       throw new Exception("Unsupported Protocol");
     }
-    System.out.println("wtf: " + httpParts[1] + " / " + httpParts[1].equals("1.1"));
     if (!httpParts[1].split(" ")[0].trim().equals("1.1")) {
       throw new Exception("Unsupported HTTP Version: " + httpParts[1]);
     }
@@ -117,7 +124,6 @@ public class Request {
   }
 
   public RequestLine getRequestLine() {
-    System.out.println("[getRequestLine] " + requestLine);
     return requestLine;
   }
 

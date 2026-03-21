@@ -25,7 +25,6 @@ public class RequestLine {
 	}
 
 	public String getMethod() {
-		System.out.println("[getMethod] : " + method);
 		return method.toString();
 	}
 
